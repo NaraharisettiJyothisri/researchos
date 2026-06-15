@@ -1,0 +1,92 @@
+datasource db {
+  provider = "sqlite"
+}
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+model ResearchProject {
+  id        String   @id @default(uuid())
+  query     String
+  mode      String   // "quick" | "deep" | "market" | "competitor" | "financial" | "academic"
+  status    String   // "pending" | "planning" | "searching" | "extracting" | "validating" | "completed" | "failed"
+  error     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  plan      ResearchPlan?
+  sources   WebSource[]
+  facts     ExtractedFact[]
+  report    ResearchReport?
+  chats     ChatHistory[]
+}
+
+model ResearchPlan {
+  id          String   @id @default(uuid())
+  projectId   String   @unique
+  steps       String   // Stringified JSON representing plan steps
+  metrics     String   // Stringified JSON list of metrics needed
+  entities    String   // Stringified JSON list of entities identified
+  dateRange   String?  // Target date range
+  createdAt   DateTime @default(now())
+
+  project     ResearchProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model WebSource {
+  id               String   @id @default(uuid())
+  projectId        String
+  title            String
+  url              String
+  snippet          String
+  content          String
+  reliabilityScore Float    @default(0.8)
+  createdAt        DateTime @default(now())
+
+  project          ResearchProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  facts            ExtractedFact[]
+}
+
+model ExtractedFact {
+  id               String   @id @default(uuid())
+  projectId        String
+  sourceId         String?
+  entity           String
+  metric           String
+  value            String
+  date             String?
+  confidence       Float    @default(1.0)
+  isOutlier        Boolean  @default(false)
+  contradictsFactId String?
+  createdAt        DateTime @default(now())
+
+  project          ResearchProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  source           WebSource?      @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+}
+
+model ResearchReport {
+  id              String   @id @default(uuid())
+  projectId       String   @unique
+  summary         String   // Markdown string of executive summary
+  keyFindings     String   // Stringified JSON array of findings
+  statsTable      String   // Stringified JSON of tabular stats
+  chartData       String   // Stringified JSON of charts (line, bar, pie data)
+  confidenceScore Float    @default(1.0)
+  outlierAnalysis String?
+  images          String   // Stringified JSON of image objects (url, caption, attribution)
+  createdAt       DateTime @default(now())
+
+  project         ResearchProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model ChatHistory {
+  id        String   @id @default(uuid())
+  projectId String
+  role      String   // "user" | "assistant"
+  content   String
+  createdAt DateTime @default(now())
+
+  project   ResearchProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
